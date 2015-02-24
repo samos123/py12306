@@ -6,16 +6,18 @@ import argparse
 import urllib
 import time
 import datetime
+import json
+from PIL import Image
+from StringIO import StringIO
 import sys
 import re
-import ConfigParser
 import random
 import smtplib
 from email.mime.text import MIMEText
 
 # 第三方库
 import requests
-from huzhifeng import dumpObj, hasKeys
+import ConfigParser
 
 # Set default encoding to utf-8
 reload(sys)
@@ -40,6 +42,22 @@ seatMaps = [
     ('B', u'混编硬座'),
     ('P', u'特等座')
 ]
+
+
+def dumpObj(obj):
+    if not obj:
+        return
+    print(json.dumps(obj, ensure_ascii=False, indent=2))
+
+
+def hasKeys(obj, keys):
+    if not obj:
+        return False
+    if not keys:
+        return False
+    if set(keys).issubset(obj):
+        return True
+    return False
 
 
 # 全局函数
@@ -513,9 +531,8 @@ class MyOrder(object):
     def getCaptcha(self, url):
         self.updateHeaders(url)
         r = self.session.get(url, verify=False, stream=True, timeout=16)
-        with open('captcha.gif', 'wb') as fd:
-            for chunk in r.iter_content():
-                fd.write(chunk)
+        img = Image.open(StringIO(r.content))
+        img.show()
         print(u'请输入4位图片验证码(回车刷新验证码):')
         captcha = raw_input()
         if len(captcha) == 4:
