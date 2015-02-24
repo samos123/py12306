@@ -6,6 +6,8 @@ import argparse
 import urllib
 import time
 import datetime
+from PIL import Image
+from StringIO import StringIO
 import sys
 import re
 import ConfigParser
@@ -513,9 +515,8 @@ class MyOrder(object):
     def getCaptcha(self, url):
         self.updateHeaders(url)
         r = self.session.get(url, verify=False, stream=True, timeout=16)
-        with open('captcha.gif', 'wb') as fd:
-            for chunk in r.iter_content():
-                fd.write(chunk)
+        img = Image.open(StringIO(r.content))
+        img.show()
         print(u'请输入4位图片验证码(回车刷新验证码):')
         captcha = raw_input()
         if len(captcha) == 4:
