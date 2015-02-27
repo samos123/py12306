@@ -19,6 +19,8 @@ from email.mime.text import MIMEText
 import requests
 import ConfigParser
 
+from js_functions import bin216, encode32, encrypt
+
 # Set default encoding to utf-8
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -722,6 +724,22 @@ class MyOrder(object):
         else:
             return RET_ERR
 
+
+
+    def extract_encrypt_key_value(self, html_content):
+        login_match = re.search(r'<script src="(/otn/dynamicJs/.*?)" type="text/javascript" xml:space="preserve"></script>',
+                                html_content)
+        js_url = "https://kyfw.12306.cn" + login_match.group(1)
+        js_req = self.session.get(js_url)
+        js_content = js_req.content
+        js_match = re.search("(function bin216.*?)function aj", js_content)
+        js_encode = js_match.group(1)
+        key_match = re.search("var key='(.*?)'", js_content)
+        key = key_match.group(1)
+        value = encode32(bin216(encrypt("1111", key)))
+        print("Encrypted key, value: %s ,   %s" % (key, value))
+        return [key, value]
+
     def login(self):
         url = 'https://kyfw.12306.cn/otn/login/init'
         r = self.get(url)
@@ -736,6 +754,8 @@ class MyOrder(object):
         if self.checkRandCodeAnsyn('login') == RET_ERR:
             return RET_ERR
 
+        self.encrypted_key_value = self.extract_encrypt_key_value(r.content)
+
         print(u'正在登录...')
         url = 'https://kyfw.12306.cn/otn/login/loginAysnSuggest'
         parameters = [
@@ -743,7 +763,7 @@ class MyOrder(object):
             ('userDTO.password', self.password),
             ('randCode', self.captcha),
             ('randCode_validate', ''),
-            #('ODg3NzQ0', 'OTIyNmFhNmQwNmI5ZmQ2OA%3D%3D'),
+            (self.encrypted_key_value[0], self.encrypted_key_value[1]),
             ('myversion', 'undefined')
         ]
         payload = urllib.urlencode(parameters)
@@ -1170,9 +1190,13 @@ class MyOrder(object):
             print(u'初始化订单异常')
 
         print(u'准备下单喽')
+        url = 'https://kyfw.12306.cn/otn/leftTicket/init'
+        r = self.get(url)
+        self.encrypted_key_value = self.extract_encrypt_key_value(r.content)
+
         url = 'https://kyfw.12306.cn/otn/leftTicket/submitOrderRequest'
         parameters = [
-            #('ODA4NzIx', 'MTU0MTczYmQ2N2I3MjJkOA%3D%3D'),
+            (self.encrypted_key_value[0], self.encrypted_key_value[1]),
             ('myversion', 'undefined'),
             ('secretStr', self.trains[self.current_train_index]['secretStr']),
             ('train_date', self.train_date),
